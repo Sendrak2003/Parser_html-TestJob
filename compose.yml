@@ -1,0 +1,70 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: parser-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8090
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./:/src
+      - app_bin:/src/Parser_html-TestJob/bin
+      - app_obj:/src/Parser_html-TestJob/obj
+      - nuget_cache:/root/.nuget/packages
+
+  postgres:
+    image: postgres:18
+    container_name: parser-postgres
+    environment:
+      POSTGRES_DB: parser_db
+      POSTGRES_USER: parser
+      POSTGRES_PASSWORD: parser_pass
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U parser -d parser_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: parser-pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      PGADMIN_SERVER_JSON_FILE: /tmp/servers.json
+      PG_HOST: postgres
+      PG_PORT: "5432"
+      PG_DB: parser_db
+      PG_USER: parser
+      PG_PASSWORD: parser_pass
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |-
+        echo "$$PG_HOST:$$PG_PORT:$$PG_DB:$$PG_USER:$$PG_PASSWORD" > /tmp/pgpass
+        chmod 600 /tmp/pgpass
+        printf '{"Servers":{"1":{"Name":"%s","Group":"Servers","Host":"%s","Port":%s,"MaintenanceDB":"%s","Username":"%s","SSLMode":"prefer","PassFile":"/tmp/pgpass"}}}' "$$PG_DB" "$$PG_HOST" "$$PG_PORT" "$$PG_DB" "$$PG_USER" > /tmp/servers.json
+        exec /entrypoint.sh
+    ports:
+      - "8080:80"
+
+volumes:
+  postgres_data:
+  app_bin:
+  app_obj:
+  nuget_cache:
