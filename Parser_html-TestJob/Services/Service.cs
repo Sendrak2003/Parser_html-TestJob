@@ -12,10 +12,10 @@ public class ParserService
         @"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-    private readonly string _connectionString;
+    private readonly NpgsqlDataSource _dataSource;
 
-    public ParserService(string connectionString)
-        => _connectionString = connectionString;
+    public ParserService(NpgsqlDataSource dataSource)
+        => _dataSource = dataSource;
 
     public async Task InitializeAsync()
     {
@@ -48,7 +48,7 @@ public class ParserService
         }
         var attrValues = elements.Select(e => e.GetAttribute(request.Attribute!)).ToList();
 
-        var emails = EmailRegex.Matches(pageHtml).Select(m => m.Value).ToList();
+        var emails = EmailRegex.Matches(pageHtml).Select(m => m.Value).Distinct().ToList();
 
         var cipher = DecodeBase64(request.EncryptedTextBytesB64!, ErrorType.InvalidEncryptedTextBytes, "encrypted_text_bytes_b64");
         var key = DecodeBase64(request.KeyBytesB64!, ErrorType.InvalidKeyBytes, "key_bytes_b64");
@@ -97,7 +97,7 @@ public class ParserService
 
     private async Task InitializeDatabaseAsync()
     {
-        await using var connection = new NpgsqlConnection(_connectionString);
+        await using var connection = await _dataSource.OpenConnectionAsync();
 
         await connection.ExecuteAsync("""
             CREATE TABLE IF NOT EXISTS elements (
@@ -115,8 +115,7 @@ public class ParserService
 
         try
         {
-            await using var connection = new NpgsqlConnection(_connectionString);
-            await connection.OpenAsync();
+            await using var connection = await _dataSource.OpenConnectionAsync();
             await using var transaction = await connection.BeginTransactionAsync();
 
             await connection.ExecuteAsync("""

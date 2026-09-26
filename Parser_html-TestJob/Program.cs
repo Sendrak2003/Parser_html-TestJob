@@ -1,5 +1,6 @@
 using System.Text.Encodings.Web;
 using FluentValidation;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,10 +12,10 @@ builder.Services.AddControllers()
     });
 builder.Services.AddOpenApi();
 builder.Services.AddValidatorsFromAssemblyContaining<ElementsRequestValidator>();
-builder.Services.AddSingleton<ParserService>(_ =>
-    new ParserService(
-        builder.Configuration.GetConnectionString("Default")
-        ?? throw new InvalidOperationException("Connection string 'Default' not found.")));
+builder.Services.AddSingleton(_ => NpgsqlDataSource.Create(
+    builder.Configuration.GetConnectionString("Default")
+    ?? throw new InvalidOperationException("Connection string 'Default' not found.")));
+builder.Services.AddSingleton<ParserService>();
 
 var app = builder.Build();
 

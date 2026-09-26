@@ -22,7 +22,7 @@ public class ElementsController : ControllerBase
         {
             var error = validation.Errors.First();
             var code = Enum.TryParse<ErrorType>(error.ErrorCode, out var parsed) ? parsed : ErrorType.UnknownError;
-            return Ok(new Result { IsError = 1, ErrorCode = code, ErrorMessage = error.ErrorMessage });
+            return BadRequest(new Result { IsError = 1, ErrorCode = code, ErrorMessage = error.ErrorMessage });
         }
 
         try
@@ -31,11 +31,11 @@ public class ElementsController : ControllerBase
         }
         catch (CustomError ex)
         {
-            return Ok(new Result { IsError = 1, ErrorCode = ex.Code, ErrorMessage = ex.Message });
+            return BadRequest(new Result { IsError = 1, ErrorCode = ex.Code, ErrorMessage = ex.Message });
         }
         catch (Exception ex)
         {
-            return Ok(new Result { IsError = 1, ErrorCode = ErrorType.UnknownError, ErrorMessage = ex.Message });
+            return StatusCode(500, new Result { IsError = 1, ErrorCode = ErrorType.UnknownError, ErrorMessage = ex.Message });
         }
     }
 }
